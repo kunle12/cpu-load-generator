@@ -21,16 +21,34 @@ import subprocess
 import time
 
 
-def process(interval, utilization_list, ncpus):
-    ncpus_str = str(ncpus)
-    for utilization in utilization_list:
-        utilization_str = str(utilization)
-        print "\nSwitching to " + utilization_str + "%"
-        p = subprocess.Popen(['lookbusy',
-                              '--ncpus', ncpus_str,
-                              '--cpu-util', utilization_str])
-        time.sleep(interval)
-        p.terminate()
+def process(interval, utilization_list, options):
+    ncpus_str = str(options.ncpus)
+    if options.timeout == 0:
+        for utilization in utilization_list:
+            print "Switching to {}%.".format(utilization)
+            p = subprocess.Popen(['lookbusy',
+                                  '--ncpus', ncpus_str,
+                                  '--cpu-util', str(utilization)])
+            time.sleep(interval)
+            p.terminate()
+    else:
+        timecnt = 0
+        while timecnt < options.timeout:
+            for utilization in utilization_list:
+                print "Switching to {}%.".format(utilization)
+                p = subprocess.Popen(['lookbusy',
+                                      '--ncpus', ncpus_str,
+                                      '--cpu-util', str(utilization)])
+                intcnt = 0
+                while intcnt < interval and timecnt < options.timeout:
+                    time.sleep(1)
+                    intcnt += 1
+                    timecnt += 1
+                    print "here"
+                p.terminate()
+                if timecnt >= options.timeout:
+                    print "Load process times out. Quit."
+                    break
 
 
 class PosOptionParser(OptionParser):
@@ -82,6 +100,8 @@ def main():
                'specified as numbers in the [0, 100] range'))
     parser.add_option('-n', '--ncpus', type='int', dest='ncpus', default=1,
                       help='number of CPU cores to utilize [default: 1]')
+    parser.add_option('-t', '--timeout', type='int', dest='timeout', default=0,
+                      help='number of seconds for generated CPU load  [default: 0 (infinite)]')
 
     (options, args) = parser.parse_args()
 
@@ -91,9 +111,12 @@ def main():
     try:
         interval = int(args[0])
     except ValueError:
-        parser.error('interval must be an integer >= 0')
+        parser.error('interval must be an integer > 0')
     if interval <= 0:
-        parser.error('interval must be an integer >= 0')
+        parser.error('interval must be an integer > 0')
+
+    if options.timeout < 0:
+        parser.error('timeout must be a integer >= 0.0')
 
     filename = args[1]
     if not os.access(filename, os.R_OK):
@@ -115,7 +138,7 @@ def main():
     if interval <= 0:
         parser.error('interval must be an integer >= 0')
 
-    process(interval, utilization, options.ncpus)
+    process(interval, utilization, options)
 
 
 if __name__ == '__main__':
