@@ -44,7 +44,6 @@ def process(interval, utilization_list, options):
                     time.sleep(1)
                     intcnt += 1
                     timecnt += 1
-                    print "here"
                 p.terminate()
                 if timecnt >= options.timeout:
                     print "Load process times out. Quit."
